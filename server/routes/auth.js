@@ -3,106 +3,127 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { check, validationResult } = require('express-validator'); // For input validation
 const User = require('../models/User');
 
 // @route   POST api/auth/register
 // @desc    Register a user
 // @access  Public
-router.post('/register', async (req, res) => {
-    console.log('Received registration request:', req.body);
-  const { name, email, password, isLandlord } = req.body;
-
-  try {
-    let user = await User.findOne({ email });
-
-    if (user) {
-      return res.status(400).json({ msg: 'User already exists' });
+router.post(
+  '/register',
+  [
+    // Validation middleware
+    check('name', 'Name is required').not().isEmpty(),
+    check('email', 'Please include a valid email').isEmail(),
+    check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
+  ],
+  async (req, res) => {
+    // Handle validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    user = new User({
-      name,
-      email,
-      password,
-      isLandlord
-    });
+    // Extract fields from request body
+    const { name, email, password, isLandlord } = req.body;
 
-    await user.save();
-
-    const payload = {
-      user: {
-        id: user.id
+    try {
+      // Check if user already exists
+      let user = await User.findOne({ email });
+      if (user) {
+        return res.status(400).json({ errors: [{ msg: 'User already exists' }] });
       }
-    };
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: '1d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token });
-      }
-    );
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
+      // Create new user instance
+      user = new User({
+        name,
+        email,
+        password, // Will be hashed by pre-save hook
+        isLandlord: isLandlord || false,
+      });
+
+      // Save user to the database (triggers pre-save hook)
+      await user.save();
+
+      // Create JWT payload
+      const payload = {
+        user: {
+          id: user.id,
+        },
+      };
+
+      // Sign JWT and return token
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET,
+        { expiresIn: '1d' }, // Token expires in 1 day
+        (err, token) => {
+          if (err) throw err;
+          res.json({ token });
+        }
+      );
+    } catch (err) {
+      console.error('Registration error:', err.message);
+      res.status(500).send('Server error');
+    }
   }
-});
-
-console.error('Registration error:', err);
-res.status(500).json({ msg: 'Server error', error: err.message });
+);
 
 // @route   POST api/auth/login
 // @desc    Authenticate user & get token
 // @access  Public
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-
-  try {
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      return res.status(400).json({ msg: 'Invalid Credentials' });
+router.post(
+  '/login',
+  [
+    // Validation middleware
+    check('email', 'Please include a valid email').isEmail(),
+    check('password', 'Password is required').exists(),
+  ],
+  async (req, res) => {
+    // Handle validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
     }
 
-    const isMatch = await user.matchPassword(password);
+    // Extract fields from request body
+    const { email, password } = req.body;
 
-    if (!isMatch) {
-      return res.status(400).json({ msg: 'Invalid Credentials' });
+    try {
+      // Find user by email
+      let user = await User.findOne({ email });
+      if (!user) {
+        return res.status(400).json({ errors: [{ msg: 'Invalid Credentials' }] });
+      }
+
+      // Check if password matches
+      const isMatch = await user.matchPassword(password);
+      if (!isMatch) {
+        return res.status(400).json({ errors: [{ msg: 'Invalid Credentials' }] });
+      }
+
+      // Create JWT payload
+      const payload = {
+        user: {
+          id: user.id,
+        },
+      };
+
+      // Sign JWT and return token
+      jwt.sign(
+        payload,
+        process.env.JWT_SECRET,
+        { expiresIn: '1d' }, // Token expires in 1 day
+        (err, token) => {
+          if (err) throw err;
+          res.json({ token });
+        }
+      );
+    } catch (err) {
+      console.error('Login error:', err.message);
+      res.status(500).send('Server error');
     }
-
-    const payload = {
-      user: {
-        id: user.id
-      }
-    };
-
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET,
-      { expiresIn: 3600 },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token });
-      }
-    );
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Server error');
   }
-});
+);
 
-module.exports = function(req, res, next) {
-  const token = req.header('x-auth-token');
-  if (!token) {
-    return res.status(401).json({ msg: 'No token, authorization denied' });
-  }
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded.user;
-    next();
-  } catch (err) {
-    res.status(401).json({ msg: 'Token is not valid' });
-  }
-};
 module.exports = router;

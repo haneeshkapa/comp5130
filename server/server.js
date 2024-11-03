@@ -1,63 +1,54 @@
+// server/server.js
 const express = require('express');
-const mongoose = require('mongoose');
+const connectDB = require('./config/connectDB');
 const cors = require('cors');
-require('dotenv').config();
+const dotenv = require('dotenv');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
+// Load environment variables
+dotenv.config();
+
+// Initialize Express app
 const app = express();
-// Middleware
-app.use(express.json());
-app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5001',
-  credentials: true
-}));
-
-const usernamesRoute = require('/Users/haneeshkapa/Desktop/univrooms/comp5130/server/routes/usernames.js'); // Adjust path if necessary
-app.use('/api/usernames', usernamesRoute);
 
 // Connect to MongoDB
-try {
-  await mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-  });
-  console.log('MongoDB connected');
-} catch (error) {
-  console.error('MongoDB connection error:', error);
-}
+connectDB();
 
-// Routes
-try {
-  const authRoutes = require('./routes/auth');
-  if (typeof authRoutes === 'function') {
-    app.use('/api/auth', authRoutes);
-  } else {
-    console.error('Auth routes module is not a function');
-  }
-} catch (error) {
-  console.error('Error loading auth routes:', error.message);
-}
+// Middleware
+app.use(express.json()); // For parsing application/json
+app.use(cors({
+  origin: 'http://localhost:3000', // Replace with your frontend's URL
+  credentials: true, // If you're using cookies
+}));
 
-try {
-  const roomRoutes = require('./routes/rooms');
-  if (typeof roomRoutes === 'function') {
-    app.use('/api/rooms', roomRoutes);
-  } else {
-    console.error('Room routes module is not a function');
-  }
-} catch (error) {
-  console.error('Error loading room routes:', error.message);
-}
+app.use(helmet()); // Secure HTTP headers
 
-try {
-  const userRoutes = require('./routes/users');
-  if (typeof userRoutes === 'function') {
-    app.use('/api/users', userRoutes);
-  } else {
-    console.error('User routes module is not a function');
-  }
-} catch (error) {
-  console.error('Error loading user routes:', error.message);
-}
+// Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again later',
+});
+app.use(limiter);
 
+// Define Routes
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/rooms', require('./routes/rooms'));
+app.use('/api/users', require('./routes/users'));
+app.use('/api/usernames', require('./routes/usernames'));
+
+// Error Handling Middleware (optional but recommended)
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
+
+// Define PORT
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Start Server
+app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
+// server/server.js
+const morgan = require('morgan');
+app.use(morgan('dev')); // Use 'combined' for more detailed logs

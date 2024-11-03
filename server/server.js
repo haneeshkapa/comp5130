@@ -11,14 +11,19 @@ app.use(cors({
   credentials: true
 }));
 
+const usernamesRoute = require('/Users/haneeshkapa/Desktop/univrooms/comp5130/server/routes/usernames.js'); // Adjust path if necessary
+app.use('/api/usernames', usernamesRoute);
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log('MongoDB connected'))
-.catch(err => console.log('MongoDB connection error:', err));
+try {
+  await mongoose.connect(process.env.MONGODB_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+  });
+  console.log('MongoDB connected');
+} catch (error) {
+  console.error('MongoDB connection error:', error);
+}
 
 // Routes
 try {

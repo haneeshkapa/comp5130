@@ -1,10 +1,13 @@
 // server/server.js
+
 const express = require('express');
 const connectDB = require('./config/connectDB');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
+const logger = require('./config/logger'); // Import the logger
 
 // Load environment variables
 dotenv.config();
@@ -20,9 +23,9 @@ app.use(express.json()); // For parsing application/json
 app.use(cors({
   origin: 'http://localhost:3000', // Replace with your frontend's URL
   credentials: true, // If you're using cookies
-}));
-
+})); // Adjust origin as needed
 app.use(helmet()); // Secure HTTP headers
+app.use(morgan('combined', { stream: logger.stream })); // HTTP request logger using morgan and Winston
 
 // Rate Limiting
 const limiter = rateLimit({
@@ -40,7 +43,7 @@ app.use('/api/usernames', require('./routes/usernames'));
 
 // Error Handling Middleware (optional but recommended)
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.error(err.stack);
   res.status(500).send('Something broke!');
 });
 
@@ -48,7 +51,24 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 // Start Server
-app.listen(PORT, () => console.log(`Server started on port ${PORT}`));
-// server/server.js
-const morgan = require('morgan');
-app.use(morgan('dev')); // Use 'combined' for more detailed logs
+const server = app.listen(PORT, () => logger.info(`Server started on port ${PORT}`));
+
+// Graceful Shutdown
+process.on('SIGINT', () => {
+  logger.info('SIGINT received. Shutting down gracefully.');
+  server.close(() => {
+    logger.info('Closed out remaining connections.');
+    process.exit(0);
+  });
+});
+
+process.on('SIGTERM', () => {
+  logger.info('SIGTERM received. Shutting down gracefully.');
+  server.close(() => {
+    logger.info('Closed out remaining connections.');
+    process.exit(0);
+  });
+});
+
+// Export app for testing purposes
+module.exports = app;

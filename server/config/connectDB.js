@@ -1,30 +1,19 @@
+// server/config/connectDB.js
+
 const mongoose = require('mongoose');
+const logger = require('./logger'); // Correct path to logger.js
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGODB_URI, {
+    const conn = await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log('MongoDB connected');
+    logger.info(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
+    logger.error(`MongoDB connection error: ${error.message}`);
+    process.exit(1); // Exit process with failure
   }
 };
 
 module.exports = connectDB;
-const connectWithRetry = () => {
-  mongoose
-    .connect(process.env.MONGODB_URI, { useNewUrlParser: true, useUnifiedTopology: true })
-    .then(() => console.log('MongoDB connected'))
-    .catch((err) => {
-      console.error('MongoDB connection error:', err);
-      setTimeout(connectWithRetry, 5000);
-    });
-};
-
-connectWithRetry();
-mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected');
-});

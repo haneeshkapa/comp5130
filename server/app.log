@@ -36,3 +36,4 @@
 {"level":"info","message":"::1 - - [22/Nov/2024:05:40:16 +0000] \"POST /api/auth/login HTTP/1.1\" 400 42 \"http://localhost:3000/\" \"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36\"","timestamp":"2024-11-22 00:40:16"}
 {"level":"info","message":"Server started on port 5001","timestamp":"2024-11-25 00:08:49"}
 {"level":"info","message":"MongoDB Connected: cluster0-shard-00-01.kcekb.mongodb.net","timestamp":"2024-11-25 00:08:50"}
+{"level":"info","message":"SIGINT received. Shutting down gracefully.","timestamp":"2024-11-25 00:12:52"}

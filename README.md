@@ -13,8 +13,8 @@
 
 1. Clone the repository:
    ```
-   git clone https://github.com/your-username/5130.git
-   cd 5130
+   git clone https://github.com/haneeshkapa/comp5130
+   cd comp5130
    ```
 
 2. Install dependencies:
